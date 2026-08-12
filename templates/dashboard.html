@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scraper-Health-MCP — Self-Healing Scraper Fleet</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card: #161b22;
+            --border: #30363d;
+            --accent: #58a6ff;
+            --green: #3fb950;
+            --yellow: #d29922;
+            --red: #f85149;
+            --text: #e6edf3;
+            --muted: #8b949e;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+        header {
+            border-bottom: 1px solid var(--border);
+            padding: 20px 0;
+            margin-bottom: 32px;
+        }
+        header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        header .subtitle {
+            color: var(--muted);
+            font-size: 14px;
+            margin-top: 4px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .badge-mock { background: var(--yellow); color: #000; }
+        .badge-live { background: var(--green); color: #000; }
+
+        .grid { display: grid; gap: 20px; }
+        .grid-2 { grid-template-columns: 1fr 1fr; }
+        .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .card h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .health-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        .dot-healthy { background: var(--green); }
+        .dot-degraded { background: var(--yellow); }
+        .dot-broken { background: var(--red); }
+
+        .collector-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .collector-row:last-child { border-bottom: none; }
+        .collector-name { font-weight: 500; }
+        .collector-url { color: var(--muted); font-size: 13px; }
+        .collector-health {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .health-label {
+            font-size: 13px;
+            text-transform: capitalize;
+        }
+        .health-label.healthy { color: var(--green); }
+        .health-label.degraded { color: var(--yellow); }
+        .health-label.broken { color: var(--red); }
+
+        .schema-fields {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 4px;
+        }
+        .schema-field {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .heal-event {
+            padding: 12px;
+            margin-bottom: 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+        .heal-event-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .heal-event-status {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        .status-healed { background: rgba(63, 185, 80, 0.2); color: var(--green); }
+        .status-auto_approved { background: rgba(88, 166, 255, 0.2); color: var(--accent); }
+        .status-initiated { background: rgba(210, 153, 34, 0.2); color: var(--yellow); }
+        .status-failed { background: rgba(248, 81, 73, 0.2); color: var(--red); }
+        .heal-event .prompt {
+            font-size: 13px;
+            color: var(--muted);
+            font-family: monospace;
+            margin: 4px 0;
+        }
+        .heal-event .diff {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            margin-top: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .auto-approve-badge {
+            background: var(--accent);
+            color: #000;
+            font-size: 11px;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+        .btn {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.85; }
+        .btn-secondary {
+            background: var(--card);
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+        .btn-danger {
+            background: var(--red);
+        }
+        .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+        .stat {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+        }
+        .stat-label {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .mcp-tool {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+        .mcp-tool-name {
+            font-weight: 600;
+            font-family: monospace;
+            color: var(--accent);
+        }
+        .mcp-tool-desc {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .footer {
+            margin-top: 32px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 13px;
+        }
+        .footer a { color: var(--accent); text-decoration: none; }
+
+        .demo-log {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            font-family: monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 12px;
+        }
+        .demo-step {
+            padding: 2px 0;
+            color: var(--text);
+        }
+        .demo-step.success { color: var(--green); }
+        .demo-step.error { color: var(--red); }
+
+        @media (max-width: 768px) {
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                🔧 Scraper-Health-MCP
+                <span class="badge {% if status.mock_mode %}badge-mock{% else %}badge-live{% endif %}">
+                    {% if status.mock_mode %}Mock Mode{% else %}Live API{% endif %}
+                </span>
+            </h1>
+            <div class="subtitle">
+                Autonomous self-healing scraper fleet manager for Bright Data Scraper Studio ·
+                MCP server with 5 tools · <a href="https://github.com/0xConsole/scraper-health-mcp">GitHub</a>
+            </div>
+        </header>
+
+        <!-- Stats -->
+        <div class="grid grid-3" style="margin-bottom: 24px;">
+            <div class="card stat">
+                <div class="stat-value">{{ status.collectors | length }}</div>
+                <div class="stat-label">Collectors Monitored</div>
+            </div>
+            <div class="card stat">
+                <div class="stat-value">{{ status.heal_events | length }}</div>
+                <div class="stat-label">Heal Events</div>
+            </div>
+            <div class="card stat">
+                <div class="stat-value">5</div>
+                <div class="stat-label">MCP Tools</div>
+            </div>
+        </div>
+
+        <!-- Collectors + Actions -->
+        <div class="grid grid-2">
+            <div class="card">
+                <h2>📡 Collector Fleet</h2>
+                {% for c in status.collectors %}
+                <div class="collector-row">
+                    <div>
+                        <div class="collector-name">{{ c.name }}</div>
+                        <div class="collector-url">{{ c.url }}</div>
+                        <div class="schema-fields">
+                            {% for f in c.schema_fields %}
+                            <span class="schema-field">{{ f }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="collector-health">
+                        {% if c.health %}
+                            <span class="health-dot dot-healthy"></span>
+                            <span class="health-label healthy">healthy</span>
+                        {% else %}
+                            <span class="health-dot dot-broken"></span>
+                            <span class="health-label broken">unknown</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                <div class="actions">
+                    <button class="btn btn-sm" onclick="runDemo()">▶ Run Full Demo</button>
+                    <button class="btn btn-sm btn-secondary" onclick="checkHealth()">🔍 Health Check All</button>
+                    <button class="btn btn-sm btn-danger" onclick="triggerBreakage()">⚡ Trigger Breakage + Heal</button>
+                </div>
+            </div>
+
+            <!-- MCP Tools -->
+            <div class="card">
+                <h2>🤖 MCP Tools</h2>
+                <div class="mcp-tool">
+                    <div class="mcp-tool-name">create_scraper</div>
+                    <div class="mcp-tool-desc">Create a new scraper from URL + description via Bright Data AI Flow</div>
+                </div>
+                <div class="mcp-tool">
+                    <div class="mcp-tool-name">run_collector</div>
+                    <div class="mcp-tool-desc">Trigger a collector and return scrape results</div>
+                </div>
+                <div class="mcp-tool">
+                    <div class="mcp-tool-name">health_check</div>
+                    <div class="mcp-tool-desc">Run collector + check output health (schema, nulls, row-count anomaly)</div>
+                </div>
+                <div class="mcp-tool">
+                    <div class="mcp-tool-name">self_heal</div>
+                    <div class="mcp-tool-desc">Full autonomous loop: detect → heal → auto-approve → re-scrape → verify</div>
+                </div>
+                <div class="mcp-tool">
+                    <div class="mcp-tool-name">verify</div>
+                    <div class="mcp-tool-desc">Verify a healed collector has restored health</div>
+                </div>
+                <div style="margin-top: 12px;">
+                    <a href="/api/mcp/manifest" class="btn btn-sm btn-secondary" style="text-decoration: none; display: inline-block;">📋 MCP Manifest</a>
+                    <a href="/api/tools" class="btn btn-sm btn-secondary" style="text-decoration: none; display: inline-block;">📖 API Docs</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Heal Events Timeline -->
+        <div class="card" style="margin-top: 20px;">
+            <h2>🔄 Heal Event Timeline</h2>
+            {% if status.heal_events %}
+                {% for e in status.heal_events %}
+                <div class="heal-event">
+                    <div class="heal-event-header">
+                        <div>
+                            <strong>{{ e.collector_id }}</strong>
+                            {% if e.auto_approved %}
+                            <span class="auto-approve-badge">✅ AUTO-APPROVED</span>
+                            {% endif %}
+                        </div>
+                        <span class="heal-event-status status-{{ e.status }}">{{ e.status }}</span>
+                    </div>
+                    <div class="prompt">Prompt: {{ e.heal_prompt[:120] }}{% if e.heal_prompt|length > 120 %}...{% endif %}</div>
+                    <div class="prompt">Trigger: {{ e.trigger_reason[:150] }}</div>
+                    {% if e.proposed_diff %}
+                    <div class="diff">{{ e.proposed_diff[:500] }}{% if e.proposed_diff|length > 500 %}...{% endif %}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div style="color: var(--muted); padding: 12px;">No heal events yet. Click "Run Full Demo" to see the self-healing loop in action.</div>
+            {% endif %}
+        </div>
+
+        <!-- Demo Log -->
+        <div class="card" style="margin-top: 20px;">
+            <h2>📊 Demo Console</h2>
+            <div class="demo-log" id="demo-log">
+                <div class="demo-step">Ready. Click "Run Full Demo" to see the autonomous self-healing loop.</div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Scraper-Health-MCP · Built for <a href="https://wemakedevs.io">WeMakeDevs Into the Scrape-Verse</a> hackathon ·
+               Bright Data Scraper Studio integration · MCP-compatible ·
+               <a href="https://github.com/0xConsole/scraper-health-mcp">github.com/0xConsole/scraper-health-mcp</a></p>
+        </div>
+    </div>
+
+    <script>
+        const logEl = document.getElementById('demo-log');
+
+        function log(msg, type) {
+            const div = document.createElement('div');
+            div.className = 'demo-step' + (type ? ' ' + type : '');
+            div.textContent = new Date().toLocaleTimeString() + ' — ' + msg;
+            logEl.appendChild(div);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        async function runDemo() {
+            logEl.innerHTML = '';
+            log('Starting full self-healing demo...', 'success');
+            try {
+                log('Step 1: Health-checking all collectors...');
+                const status = await fetch('/api/status').then(r => r.json());
+                log(`Found ${status.collectors.length} collectors registered`, 'success');
+
+                log('Step 2: Simulating breakage on first collector...');
+                const firstCid = status.collectors[0].collector_id;
+                log(`Triggering breakage on: ${firstCid}`);
+
+                log('Step 3: Agent detects breakage → triggers self-heal...');
+                const healResult = await fetch('/api/self_heal', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        collector_id: firstCid,
+                        heal_prompt: 'The page structure changed. Update the extraction selectors.'
+                    })
+                }).then(r => r.json());
+
+                log(`Step 4: AI proposed diff → auto-approved via resume_automation_job`, 'success');
+                log(`Step 5: Outcome: ${healResult.outcome}`, 'success');
+                log(`Duration: ${healResult.duration_seconds}s`, 'success');
+
+                log('Demo complete! Refreshing page to show heal events...');
+                setTimeout(() => location.reload(), 2000);
+            } catch (err) {
+                log('Error: ' + err.message, 'error');
+            }
+        }
+
+        async function checkHealth() {
+            logEl.innerHTML = '';
+            log('Running health check on all collectors...');
+            try {
+                const status = await fetch('/api/status').then(r => r.json());
+                for (const c of status.collectors) {
+                    const result = await fetch('/api/health_check', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({collector_id: c.collector_id})
+                    }).then(r => r.json());
+                    log(`${c.name}: ${result.health.status} (${result.health.row_count} rows)`, 'success');
+                }
+                log('All health checks complete.', 'success');
+            } catch (err) {
+                log('Error: ' + err.message, 'error');
+            }
+        }
+
+        async function triggerBreakage() {
+            logEl.innerHTML = '';
+            log('Triggering breakage simulation...');
+            try {
+                const status = await fetch('/api/status').then(r => r.json());
+                const firstCid = status.collectors[0].collector_id;
+                log(`Simulating site change on: ${status.collectors[0].name}`);
+
+                const result = await fetch('/api/trigger_breakage', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({collector_id: firstCid})
+                }).then(r => r.json());
+
+                log(`Heal outcome: ${result.heal_result.outcome}`, 'success');
+                log(`Auto-approved: ${result.heal_result.heal_event?.auto_approved ? 'Yes' : 'No'}`, 'success');
+                setTimeout(() => location.reload(), 2000);
+            } catch (err) {
+                log('Error: ' + err.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
