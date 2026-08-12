@@ -30,8 +30,13 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 
-templates = Jinja2Templates(directory=TEMPLATES_DIR)
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+# Templates are optional — fall back to inline HTML if directory missing
+_templates_available = os.path.isdir(TEMPLATES_DIR)
+if _templates_available:
+    templates = Jinja2Templates(directory=TEMPLATES_DIR)
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+else:
+    templates = None
 
 
 # ── Models ────────────────────────────────────────────────────────────
@@ -71,10 +76,31 @@ class TriggerBreakageRequest(BaseModel):
 async def dashboard(request: Request):
     """Main dashboard — collector list + heal-event timeline."""
     status = orch.get_status()
-    return templates.TemplateResponse("dashboard.html", {
-        "request": request,
-        "status": status,
-    })
+    if templates:
+        return templates.TemplateResponse("dashboard.html", {
+            "request": request,
+            "status": status,
+        })
+    # Inline fallback HTML
+    return HTMLResponse(f"""<!DOCTYPE html>
+<html><head><title>Scraper-Health-MCP</title>
+<style>body{{font-family:monospace;background:#0d1117;color:#e6edf3;padding:40px}}
+.card{{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:20px;margin:20px 0}}
+h1{{color:#58a6ff}}.badge{{background:#d29922;color:#000;padding:2px 8px;border-radius:12px;font-size:12px}}
+</style></head><body>
+<h1>Scraper-Health-MCP <span class="badge">{'Mock' if status['mock_mode'] else 'Live'}</span></h1>
+<div class="card"><h2>Collectors ({len(status['collectors'])})</h2>
+{''.join(f'<p>📡 <b>{c["name"]}</b> — {c["url"]} — fields: {", ".join(c["schema_fields"])}</p>' for c in status['collectors'])}
+</div>
+<div class="card"><h2>Heal Events ({len(status['heal_events'])})</h2>
+{'<p>No heal events yet. POST /api/demo to run the self-healing loop.</p>' if not status['heal_events'] else ''.join(f'<p>🔧 {e["status"]} — {e["trigger_reason"][:80]} — auto_approved={e["auto_approved"]}</p>' for e in status['heal_events'])}
+</div>
+<div class="card"><h2>MCP Tools (5)</h2>
+<p>create_scraper · run_collector · health_check · self_heal · verify</p>
+<p>GET /api/health · /api/status · /api/tools · /api/mcp/manifest</p>
+<p>POST /api/create_scraper · /api/run_collector · /api/health_check · /api/self_heal · /api/verify · /api/demo</p>
+</div>
+</body></html>""")
 
 
 # ── API endpoints ─────────────────────────────────────────────────────
