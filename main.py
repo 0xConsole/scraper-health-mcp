@@ -11,7 +11,6 @@ import time
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
@@ -34,7 +33,6 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 _templates_available = os.path.isdir(TEMPLATES_DIR)
 if _templates_available:
     templates = Jinja2Templates(directory=TEMPLATES_DIR)
-    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 else:
     templates = None
 
