@@ -1,1 +1,1 @@
-{"functions": {"main.py": {"runtime": "python"}}, "rewrites": [{"source": "/(.*)", "destination": "/main.py"}]}
+{"builds": [{"src": "main.py", "use": "@vercel/python"}], "routes": [{"src": "/(.*)", "dest": "/main.py"}]}
